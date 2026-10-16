@@ -1,43 +1,61 @@
 # When I sleep 🌙
 
-**Give your project a plan for the hours you're away.**
+**Go to sleep. Your project has a recovery plan.**
 
-An agent skill for staged coding projects: **verify the current stage, repair failures, and advance when the evidence passes.** Leave a project and its stage prompts; return to completed work or a checkpoint that tells you exactly what remains.
+You split a project into stages, write the prompts, queue them up, and head to bed.
 
-[中文](README.zh-CN.md) · [Install](#install) · [Try the example](#try-it-on-a-small-project) · [How hosts differ](#choose-your-host)
+At 2 a.m., a test fails in stage two. The later prompts assume that stage worked. Someone needs to read the error, decide what to fix, rerun the checks, and work out whether it is safe to continue.
+
+That someone is asleep.
+
+**When I sleep gives your coding agent instructions for that decision.** It checks the current stage, writes and executes a repair prompt when a check fails, and advances dependent work only after acceptance passes. You supply the project and stage prompts; the agent handles the repair-and-recheck loop within the limits you set.
+
+[中文](README.zh-CN.md) · [Install](#install) · [Use it tonight](#use-it-tonight) · [Try a small project](#try-it-on-a-small-project)
+
+## What happens after you leave?
+
+Suppose your plan is **database → API → interface**.
+
+| What happens during the run | What the skill tells the agent to do |
+| --- | --- |
+| The database stage passes | Save its evidence and start the API stage. |
+| An API test fails | Read the failure, save a specific repair prompt, apply the fix, and rerun the checks. |
+| The repaired API passes | Start the interface stage against the verified result. |
+| A required credential is missing | Record the blocker, leave dependent stages pending, and continue established independent work. |
+| Codex has ≤5% quota left and no usable reset credit | Stop new development and deliver a report of the work completed so far. |
+
+**You do not have to wake up to write the repair prompt or decide whether the next stage can start.** During the run, the agent makes reversible choices within your scope and records decisions it cannot make. Repair attempts and elapsed time are bounded, so a stubborn failure has a stopping point.
+
+Continuation between turns requires your host's scheduler. For local unattended runs, keep the computer awake and the host application running; see [host support](#choose-your-host).
+
+## What do you come back to?
+
+Completed stages with acceptance evidence, plus a clear handoff for anything unfinished. A blocked run might leave a checkpoint like this **illustrative example**:
 
 ```text
-Stage prompt → Work → Acceptance checks → Pass → Next ready stage
-                              ↓ Fail
-                         Save repair prompt
-                              ↓
-                         Fix → Check again
+Database: passed.
+API: passed after repairing a failing request-validation check.
+Interface: blocked; real-account sign-in needs staging credentials.
 
-Missing capability, exhausted budget, or low quota → Stage-results checkpoint
+Saved: current changes, test logs, the API repair prompt, and run.md.
+Next: once staging credentials are available, resume interface acceptance.
 ```
 
-## Put it to work
+The checkpoint tells you what changed, what was actually checked, where work stopped, and how to resume. If a required check cannot run, it stays unverified; the agent preserves the failure and the remaining work.
 
-In Codex, after installation:
+## Use it tonight
+
+After installation, give Codex the project and your stage prompts:
 
 ```text
 Use $when-i-sleep.
 Project: /path/to/my-project
 Stage prompts: docs/stages.md
-Verify each stage, repair failures, and keep advancing. Don't ask me questions.
+Verify each stage, repair failures, and advance when it passes.
+Don't ask me questions while I'm away.
 ```
 
-On another skill-capable host, invoke **When I sleep** using that host's skill syntax. A stage plan can also be pasted directly into the conversation.
-
-The workflow is designed to:
-
-- **Earn the next stage.** Run the acceptance checks against the current files, including uncommitted changes.
-- **Turn failures into work.** Save a repair prompt with the actual error, edit scope and recheck command, then execute it.
-- **Keep useful work moving.** Record a blocked stage and continue work that is explicitly independent.
-- **Leave a clear handoff.** Save artifacts, verdicts, evidence, budgets and the exact recovery action before stopping.
-- **Protect the final reserve.** In Codex, at **≤5% remaining quota**, checkpoint first. If an existing reset credit cannot be used, deliver the stage-results report and pause new development.
-
-There are no questions during the run. Decisions outside the authorized scope become recorded blockers. The workflow preserves acceptance criteria and uses bounded repair attempts.
+You can paste the stages directly instead of using a file. On another skill-capable host, invoke **When I sleep** using that host's syntax.
 
 ## Install
 
@@ -68,16 +86,13 @@ Back up local customizations before replacing an existing installation. Host-spe
 
 **The host is detected from the actual runtime, not the model name.** Using an OpenAI model in another agent does not enable the Codex adapter. Other hosts never load the Codex account instructions.
 
-The skill is an instruction package. It does not install a background service or make a closed application continue running. Local unattended continuation needs a running host, accessible project files, suitable permissions, and a computer that stays awake. Codex's native continuation capability is described in the [official scheduled-task documentation](https://developers.openai.com/codex/app/automations).
+The skill uses the host's actual continuation tools and permissions. Codex's native continuation capability is described in the [official scheduled-task documentation](https://developers.openai.com/codex/app/automations). Installing a skill alone does not create a background service.
 
 ## When Codex reaches 5%
 
-The trigger is **any known relevant core five-hour or weekly window at or below 5% remaining**. An unknown value stays unknown.
+The last few percent should be enough to leave a useful handoff. When a relevant core five-hour or weekly window reaches **≤5% remaining**, the Codex adapter saves `checkpoint.md` before attempting a reset.
 
-1. Save the run state and a readable `checkpoint.md` before spending the reserve.
-2. If the required tool and an explicit authorization for one redemption exist, try one existing reset credit.
-3. If there is no usable credit, produce the stage-results report and pause new development. The report lists finished work, current changes, checks, blockers, active operations and the next action.
-4. Resume after a verified reset or a known recovery time within the run deadline. Otherwise leave a resumable checkpoint.
+With an available tool and a valid per-use authorization, it can try one existing reset credit. **If no credit can be used, it organizes the completed work, current changes, acceptance results, blockers and next step, then pauses new development.** It may resume after verified recovery within the original deadline.
 
 To authorize one conditional redemption, append this to **that run's** request:
 
@@ -85,7 +100,7 @@ To authorize one conditional redemption, append this to **that run's** request:
 For this run, when quota is at or below 5%, use one existing reset credit.
 ```
 
-No credit purchase is performed. Each redemption follows the host's authorization rules; an example or a previous run cannot authorize a new one. An uncertain redemption keeps the same request key to avoid double consumption. See the [Codex adapter](skills/when-i-sleep/references/codex.md).
+This is Codex-only behavior. Other hosts do not load account-reset instructions. Redemptions follow the host's authorization rules and use existing credits only; see the [Codex adapter](skills/when-i-sleep/references/codex.md) for recovery and duplicate-request handling.
 
 ## Tune a night of work
 
@@ -98,7 +113,7 @@ No credit purchase is performed. Each redemption follows the host's authorizatio
 
 Override these in your request. Passing a stage advances immediately in the same turn; the cadence is for resumption, not a delay between stages. Counters persist across wakeups.
 
-The run keeps a single authoritative `run.md`, original prompts, saved repair prompts, evidence logs, and a human-readable checkpoint when needed. It asks for no new input while you are away. Publishing, deploying, purchasing and external messages still require authorization already given for the run.
+Set different limits in the same request if your project needs them. Publishing, deploying, purchasing and external messages still require authorization already given for the run.
 
 ## Try it on a small project
 
@@ -108,9 +123,7 @@ Expected behavior: notice the incorrect subtotal, save and execute a repair, pas
 
 ## What has been checked
 
-The package validator checks metadata, bundled references, local documentation links, private-path leakage and the boundary keeping account operations inside the Codex adapter. A reproducible example check confirms that the cart fixture rejects its broken implementation and accepts the expected behavior.
-
-These checks do **not** establish overnight reliability, successful live reset redemption, crash recovery or compatibility with every host. See [validation and review cases](docs/validation.md) for the exact scope and commands.
+Package checks and the cart fixture are reproducible in [validation and review cases](docs/validation.md). They check packaging and fixed acceptance behavior. Real overnight reliability, live reset redemption, crash recovery and non-Codex host execution still need integration evidence.
 
 ## Contribute
 
