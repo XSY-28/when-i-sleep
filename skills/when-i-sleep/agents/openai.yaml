@@ -1,0 +1,4 @@
+interface:
+  display_name: "When I sleep"
+  short_description: "Verify stages, repair failures, and keep work resumable"
+  default_prompt: "Use $when-i-sleep on my project and stage prompts; verify, repair, and advance without asking me questions."
